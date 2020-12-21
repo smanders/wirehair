@@ -27,7 +27,7 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "gf256.h"
+#include <wirehair/gf256.h>
 
 #ifdef LINUX_ARM
 #include <unistd.h>

@@ -31,7 +31,7 @@
 #define WIREHAIR_TOOLS_H
 
 #include <wirehair/wirehair.h>
-#include "gf256.h"
+#include <wirehair/gf256.h>
 #include <new> // std::nothrow
 
 // Compiler-specific debug break

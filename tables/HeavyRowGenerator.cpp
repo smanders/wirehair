@@ -36,7 +36,7 @@ using namespace std;
 static const unsigned kRows = 6;
 static const unsigned kColumns = 18;
 
-#include "../gf256.h"
+#include <wirehair/gf256.h>
 #include "../test/SiameseTools.h"
 using namespace siamese;
 
