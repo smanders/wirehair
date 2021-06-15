@@ -29,42 +29,23 @@
 
 #include <wirehair/gf256.h>
 
-#ifdef LINUX_ARM
-#include <unistd.h>
-#include <fcntl.h>
-#include <elf.h>
-#include <linux/auxvec.h>
-#endif
+namespace
 
-//------------------------------------------------------------------------------
-// Detect host byte order.
-// This check works with GCC and LLVM; assume little-endian byte order when
-// using any other compiler.
-// The result is verified during initialization.
-//
-#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) \
-    && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define GF256_IS_BIG_ENDIAN
-#endif
-
-//------------------------------------------------------------------------------
-// Workaround for ARMv7 that doesn't provide vqtbl1_*
-// This comes from linux-raid (https://www.spinics.net/lists/raid/msg58403.html)
-//
-#ifdef GF256_TRY_NEON
-#if __ARM_ARCH <= 7 && !defined(__aarch64__)
-static GF256_FORCE_INLINE uint8x16_t vqtbl1q_u8(uint8x16_t a, uint8x16_t b)
 {
-    union {
-        uint8x16_t    val;
-        uint8x8x2_t    pair;
-    } __a = { a };
-
-    return vcombine_u8(vtbl2_u8(__a.pair, vget_low_u8(b)),
-                       vtbl2_u8(__a.pair, vget_high_u8(b)));
+  union UnionType {
+    uint32_t IntValue;
+    char CharArray[4];
+  };
+  bool isLittleEndian()
+  {
+    // unsigned char kEndianTestData[4] = { 1, 2, 3, 4 };
+    unsigned char kEndianTestData[4] = {4, 3, 2, 1};
+    UnionType type;
+    for (unsigned i = 0; i < 4; ++i)
+      type.CharArray[i] = kEndianTestData[i];
+    return 0x01020304 == type.IntValue;
+  }
 }
-#endif
-#endif
 
 //------------------------------------------------------------------------------
 // Self-Test
@@ -194,40 +175,16 @@ static bool gf256_self_test()
 //
 // Feature checks stolen shamelessly from
 // https://github.com/jedisct1/libsodium/blob/master/src/libsodium/sodium/runtime.c
-
-#if defined(HAVE_ANDROID_GETCPUFEATURES)
-#include <cpu-features.h>
-#endif
-
-#if defined(GF256_TRY_NEON)
-# if defined(IOS) && defined(__ARM_NEON__)
-// Requires iPhone 5S or newer
-static const bool CpuHasNeon = true;
-static const bool CpuHasNeon64 = true;
-# else // ANDROID or LINUX_ARM
-#  if defined(__aarch64__)
-static bool CpuHasNeon = true;      // if AARCH64, then we have NEON for sure...
-static bool CpuHasNeon64 = true;    // And we have ASIMD
-#  else
-static bool CpuHasNeon = false;     // if not, then we have to check at runtime.
-static bool CpuHasNeon64 = false;   // And we don't have ASIMD
-#  endif
-# endif
-#endif
-
-#if !defined(GF256_TARGET_MOBILE)
-
 #ifdef _MSC_VER
     #include <intrin.h> // __cpuid
     #pragma warning(disable: 4752) // found Intel(R) Advanced Vector Extensions; consider using /arch:AVX
+// consider using /arch:AVX
 #endif
-
-#ifdef GF256_TRY_AVX2
-static bool CpuHasAVX2 = false;
-#endif
+// static bool CpuHasAVX2 = false;
 static bool CpuHasSSSE3 = false;
+static bool IsLittleEndian = false;
 
-#define CPUID_EBX_AVX2    0x00000020
+//#define CPUID_EBX_AVX2 0x00000020
 #define CPUID_ECX_SSSE3   0x00000200
 
 static void _cpuid(unsigned int cpu_info[4U], const unsigned int cpu_info_type)
@@ -267,78 +224,24 @@ static void _cpuid(unsigned int cpu_info[4U], const unsigned int cpu_info_type)
 #endif
 }
 
-#else
-#if defined(LINUX_ARM)
-static void checkLinuxARMNeonCapabilities( bool& cpuHasNeon )
-{
-    auto cpufile = open("/proc/self/auxv", O_RDONLY);
-    Elf32_auxv_t auxv;
-    if (cpufile >= 0)
-    {
-        const auto size_auxv_t = sizeof(Elf32_auxv_t);
-        while (read(cpufile, &auxv, size_auxv_t) == size_auxv_t)
-        {
-            if (auxv.a_type == AT_HWCAP)
-            {
-                cpuHasNeon = (auxv.a_un.a_val & 4096) != 0;
-                break;
-            }
-        }
-        close(cpufile);
-    }
-    else
-    {
-        cpuHasNeon = false;
-    }
-}
-#endif
-#endif // defined(GF256_TARGET_MOBILE)
-
 static void gf256_architecture_init()
 {
-#if defined(GF256_TRY_NEON)
+  IsLittleEndian = isLittleEndian();
 
-    // Check for NEON support on Android platform
-#if defined(HAVE_ANDROID_GETCPUFEATURES)
-    AndroidCpuFamily family = android_getCpuFamily();
-    if (family == ANDROID_CPU_FAMILY_ARM)
-    {
-        if (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON)
-            CpuHasNeon = true;
-    }
-    else if (family == ANDROID_CPU_FAMILY_ARM64)
-    {
-        CpuHasNeon = true;
-        if (android_getCpuFeatures() & ANDROID_CPU_ARM64_FEATURE_ASIMD)
-            CpuHasNeon64 = true;
-    }
-#endif
-
-#if defined(LINUX_ARM)
-    // Check for NEON support on other ARM/Linux platforms
-    checkLinuxARMNeonCapabilities(CpuHasNeon);
-#endif
-
-#endif //GF256_TRY_NEON
-
-#if !defined(GF256_TARGET_MOBILE)
     unsigned int cpu_info[4];
 
     _cpuid(cpu_info, 1);
     CpuHasSSSE3 = ((cpu_info[2] & CPUID_ECX_SSSE3) != 0);
 
-#if defined(GF256_TRY_AVX2)
-    _cpuid(cpu_info, 7);
-    CpuHasAVX2 = ((cpu_info[1] & CPUID_EBX_AVX2) != 0);
-#endif // GF256_TRY_AVX2
+  // if (!CpuHasSSSE3) return;
+  //_cpuid(cpu_info, 7);
+  // CpuHasAVX2 = ((cpu_info[1] & CPUID_EBX_AVX2) != 0);
 
-    // When AVX2 and SSSE3 are unavailable, Siamese takes 4x longer to decode
-    // and 2.6x longer to encode.  Encoding requires a lot more simple XOR ops
-    // so it is still pretty fast.  Decoding is usually really quick because
-    // average loss rates are low, but when needed it requires a lot more
-    // GF multiplies requiring table lookups which is slower.
-
-#endif // GF256_TARGET_MOBILE
+// When AVX2 and SSSE3 are unavailable, Siamese takes 4x longer to decode
+// and 2.6x longer to encode.  Encoding requires a lot more simple XOR ops
+// so it is still pretty fast.  Decoding is usually really quick because
+// average loss rates are low, but when needed it requires a lot more
+// GF multiplies requiring table lookups which is slower.
 }
 
 
@@ -605,20 +508,6 @@ static unsigned char kEndianTestData[4] = { 1, 2, 3, 4 };
 static unsigned char kEndianTestData[4] = { 4, 3, 2, 1 };
 #endif
 
-union UnionType
-{
-    uint32_t IntValue;
-    char CharArray[4];
-};
-
-static bool IsExpectedEndian()
-{
-    UnionType type;
-    for (unsigned i = 0; i < 4; ++i)
-        type.CharArray[i] = kEndianTestData[i];
-    return 0x01020304 == type.IntValue;
-}
-
 extern "C" int gf256_init_(int version)
 {
     if (version != GF256_VERSION)
@@ -628,9 +517,6 @@ extern "C" int gf256_init_(int version)
     if (Initialized)
         return 0;
     Initialized = true;
-
-    if (!IsExpectedEndian())
-        return -2; // Unexpected byte order.
 
     gf256_architecture_init();
     gf256_poly_init(kDefaultPolynomialIndex);

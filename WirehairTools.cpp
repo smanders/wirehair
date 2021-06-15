@@ -331,7 +331,7 @@ void AddInvertibleGF2Matrix(
         target -= written0;
         prev = word0;
 
-        if (target <= 0) {
+      if (target == 0) {
             continue;
         }
 
@@ -388,9 +388,8 @@ void ShuffleDeck16(
             uint32_t jj, rv = prng.Next();
 
             // 8-bit unroll
-            switch (count - ii)
+        if (count - ii == 3)
             {
-            default:
                 jj = (uint8_t)rv % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
@@ -402,29 +401,48 @@ void ShuffleDeck16(
                 jj = (uint8_t)(rv >> 16) % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
-                ++ii;
-                jj = (uint8_t)(rv >> 24) % ii;
+          return;
+        }
+        else if (count - ii == 2)
+        {
+          jj = (uint8_t)(rv >> 8) % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
                 ++ii;
-                break;
-
-            case 3:
+          jj = (uint8_t)(rv >> 16) % ii;
+          deck[ii] = deck[jj];
+          deck[jj] = (uint16_t)ii;
+          return;
+        }
+        else if (count - ii == 1)
+        {
+          jj = (uint8_t)(rv >> 16) % ii;
+          deck[ii] = deck[jj];
+          deck[jj] = (uint16_t)ii;
+          return;
+        }
+        else if (count - ii == 0)
+        {
+          return;
+        }
+        else
+        {
                 jj = (uint8_t)rv % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
                 ++ii;
-            case 2:
                 jj = (uint8_t)(rv >> 8) % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
                 ++ii;
-            case 1:
                 jj = (uint8_t)(rv >> 16) % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
-            case 0:
-                return;
+          ++ii;
+          jj = (uint8_t)(rv >> 24) % ii;
+          deck[ii] = deck[jj];
+          deck[jj] = (uint16_t)ii;
+          ++ii;
             }
         }
     }
@@ -436,25 +454,27 @@ void ShuffleDeck16(
             uint32_t jj, rv = prng.Next();
 
             // 16-bit unroll
-            switch (count - ii)
+        if (count - ii == 1)
             {
-            default:
                 jj = (uint16_t)rv % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
-                ++ii;
-                jj = (uint16_t)(rv >> 16) % ii;
+          return;
+        }
+        else if (count - ii == 0)
+        {
+          return;
+        }
+        else
+        {
+          jj = (uint16_t)rv % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
                 ++ii;
-                break;
-
-            case 1:
-                jj = (uint16_t)rv % ii;
+          jj = (uint16_t)(rv >> 16) % ii;
                 deck[ii] = deck[jj];
                 deck[jj] = (uint16_t)ii;
-            case 0:
-                return;
+          ++ii;
             }
         }
     }

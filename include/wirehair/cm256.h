@@ -89,7 +89,8 @@ static inline unsigned char cm256_get_recovery_block_index(cm256_encoder_params 
 }
 static inline unsigned char cm256_get_original_block_index(cm256_encoder_params params, int originalBlockIndex)
 {
-    assert(originalBlockIndex >= 0 && originalBlockIndex < params.OriginalCount);
+  // assert(originalBlockIndex >= 0 && originalBlockIndex <
+  // params.OriginalCount);
     return (unsigned char)(originalBlockIndex);
 }
 

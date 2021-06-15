@@ -251,8 +251,18 @@ struct CM256Decoder
 
     // Generate the LU decomposition of the matrix
     void GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
+  CM256Decoder();
 };
 
+CM256Decoder::CM256Decoder()
+  : Params(),
+    Recovery(),
+    RecoveryCount(0),
+    Original(),
+    OriginalCount(0),
+    ErasuresIndices()
+{
+}
 bool CM256Decoder::Initialize(cm256_encoder_params& params, cm256_block* blocks)
 {
     Params = params;
