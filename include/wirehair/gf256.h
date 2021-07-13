@@ -53,51 +53,20 @@
 //------------------------------------------------------------------------------
 // Platform/Architecture
 
-#if defined(ANDROID) || defined(IOS) || defined(LINUX_ARM) || defined(__powerpc__) || defined(__s390__)
-    #define GF256_TARGET_MOBILE
-#endif // ANDROID
-
-#if defined(__AVX2__) || (defined (_MSC_VER) && _MSC_VER >= 1900)
-    #define GF256_TRY_AVX2 /* 256-bit */
-    #include <immintrin.h>
-    #define GF256_ALIGN_BYTES 32
-#else // __AVX2__
+//#define GF256_TRY_AVX2 /* 256-bit */
+//#include <immintrin.h>
+//#define GF256_ALIGN_BYTES 32
     #define GF256_ALIGN_BYTES 16
-#endif // __AVX2__
 
-#if !defined(GF256_TARGET_MOBILE)
     // Note: MSVC currently only supports SSSE3 but not AVX2
     #include <tmmintrin.h> // SSSE3: _mm_shuffle_epi8
     #include <emmintrin.h> // SSE2
-#endif // GF256_TARGET_MOBILE
-
-#if defined(HAVE_ARM_NEON_H)
-    #include <arm_neon.h>
-#endif // HAVE_ARM_NEON_H
-
-#if defined(GF256_TARGET_MOBILE)
-
-    #define GF256_ALIGNED_ACCESSES /* Inputs must be aligned to GF256_ALIGN_BYTES */
-
-# if defined(HAVE_ARM_NEON_H)
-    // Compiler-specific 128-bit SIMD register keyword
-    #define GF256_M128 uint8x16_t
-    #define GF256_TRY_NEON
-#else
-    #define GF256_M128 uint64_t
-# endif
-
-#else // GF256_TARGET_MOBILE
 
     // Compiler-specific 128-bit SIMD register keyword
     #define GF256_M128 __m128i
 
-#endif // GF256_TARGET_MOBILE
-
-#ifdef GF256_TRY_AVX2
     // Compiler-specific 256-bit SIMD register keyword
     #define GF256_M256 __m256i
-#endif
 
 // Compiler-specific C++11 restrict keyword
 #define GF256_RESTRICT __restrict
@@ -110,7 +79,6 @@
 #endif
 
 // Compiler-specific alignment keyword
-// Note: Alignment only matters for ARM NEON where it should be 16
 #ifdef _MSC_VER
     #define GF256_ALIGNED __declspec(align(GF256_ALIGN_BYTES))
 #else // _MSC_VER
@@ -147,13 +115,11 @@ struct gf256_ctx
         GF256_ALIGNED GF256_M128 TABLE_LO_Y[256];
         GF256_ALIGNED GF256_M128 TABLE_HI_Y[256];
     } MM128;
-#ifdef GF256_TRY_AVX2
-    struct
+  /*struct
     {
-        GF256_ALIGNED GF256_M256 TABLE_LO_Y[256];
-        GF256_ALIGNED GF256_M256 TABLE_HI_Y[256];
-    } MM256;
-#endif // GF256_TRY_AVX2
+  GF256_ALIGNED GF256_M256 TABLE_LO_Y[256];
+  GF256_ALIGNED GF256_M256 TABLE_HI_Y[256];
+  } MM256;*/
 
     /// Mul/Div/Inv/Sqr tables
     uint8_t GF256_MUL_TABLE[256 * 256];

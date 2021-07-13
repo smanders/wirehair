@@ -1149,26 +1149,30 @@ bool Codec::TriangleNonHeavy()
 
 #if defined(CAT_HEAVY_WIN_MULT)
 
-#if defined(CAT_ENDIAN_BIG)
-
+  namespace
+  {
+    bool isLittleEndian()
+    {
+      short int number = 0x1;
+      char* numPtr = (char*)&number;
+      return (numPtr[0] == 1);
+    }
+  }
 // Flip endianness at compile time if possible
-static uint32_t GF256_MULT_LOOKUP[16] = {
+  static uint32_t GF256_MULT_LOOKUP_BIG[16] = {
     0x00000000, 0x01000000, 0x00010000, 0x01010000, 
     0x00000100, 0x01000100, 0x00010100, 0x01010100, 
     0x00000001, 0x01000001, 0x00010001, 0x01010001, 
     0x00000101, 0x01000101, 0x00010101, 0x01010101, 
 };
 
-#else
-
 // Little-endian or unknown bit order:
-static uint32_t GF256_MULT_LOOKUP[16] = {
+  static uint32_t GF256_MULT_LOOKUP_LITTLE[16] = {
     0x00000000, 0x00000001, 0x00000100, 0x00000101, 
     0x00010000, 0x00010001, 0x00010100, 0x00010101, 
     0x01000000, 0x01000001, 0x01000100, 0x01000101, 
     0x01010000, 0x01010001, 0x01010100, 0x01010101, 
 };
-#endif
 
 #endif // CAT_HEAVY_WIN_MULT
 
@@ -1178,7 +1182,8 @@ bool Codec::Triangle()
     CAT_IF_DUMP(cout << endl << "---- Triangle ----" << endl << endl;)
 
     const unsigned first_heavy_column = _first_heavy_column;
-
+    uint32_t* GF256_MULT_LOOKUP =
+      isLittleEndian() ? GF256_MULT_LOOKUP_LITTLE : GF256_MULT_LOOKUP_BIG;
     // If next pivot is not heavy:
     if (_next_pivot < first_heavy_column &&
         !TriangleNonHeavy())
@@ -1281,7 +1286,7 @@ bool Codec::Triangle()
                         rem_row[ge_column_i - first_heavy_column] ^= code_value;
                     }
                 }
-#else // CAT_HEAVY_WIN_MULT
+#else  // CAT_HEAVY_WIN_MULT
                 const unsigned odd_count = pivot_i & 3;
                 unsigned ge_column_i = pivot_i + 1;
                 uint64_t temp_mask = ge_mask;
@@ -1329,11 +1334,8 @@ bool Codec::Triangle()
                 {
                     // Look up 4 bit window
                     const uint32_t bits = (uint32_t)(pivot_row[ge_column_i >> 6] >> (ge_column_i & 63)) & 15;
-#if defined(CAT_ENDIAN_UNKNOWN)
-                    const uint32_t window = getLE(GF256_MULT_LOOKUP[bits]);
-#else
+
                     const uint32_t window = GF256_MULT_LOOKUP[bits];
-#endif
 
                     CAT_IF_DUMP(cout << " " << ge_column_i << "x" << hex << setw(8) << setfill('0') << window << dec;)
 
@@ -2523,7 +2525,9 @@ void Codec::BackSubstituteAboveDiagonal()
             } // end if contains heavy
 
             // Only add window table entries for rows under this limit
-            const uint16_t window_row_limit = (pivot_i >= first_heavy_column) ? first_heavy_row : 0x7fff;
+          const uint16_t window_row_limit = (pivot_i >= first_heavy_column)
+                                              ? first_heavy_row
+                                              : uint16_t(0x7fff);
 
             const uint32_t first_word = backsub_i >> 6;
             const uint32_t shift0 = backsub_i & 63;
@@ -2709,7 +2713,7 @@ void Codec::BackSubstituteAboveDiagonal()
             }
         } // next pivot above
 
-        if (pivot_i <= 0) {
+      if (pivot_i == 0) {
             break;
         }
         --pivot_i;
